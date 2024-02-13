@@ -3,6 +3,9 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require('mongoose');
 const app = express();
+const dns = require('dns');
+const url = require('url');
+
 
 // Basic Configuration
 const port = process.env.PORT;
@@ -99,6 +102,36 @@ app.get("/api/shorturl/:url", (req, res) => {
 
     // Redirect to the original URL corresponding to the short URL
     res.redirect(longUrl[indexFound]);
+});
+
+
+
+function verifyUrl(submittedUrl, callback) {
+  try {
+    const parsedUrl = new URL(submittedUrl);
+    const hostname = parsedUrl.hostname;
+    
+    dns.lookup(hostname, (err, address, family) => {
+      if (err) {
+        callback(err);
+      } else {
+        callback(null, { hostname, address, family });
+      }
+    });
+  } catch (error) {
+    callback(error);
+  }
+}
+
+
+const submittedUrl = 'https://www.freecodecamp.org/learn/back-end-development-and-apis/back-end-development-and-apis-projects/url-shortener-microservice';
+
+verifyUrl(submittedUrl, (err, result) => {
+  if (err) {
+    console.error('Error:', err.message);
+  } else {
+    console.log('Verified URL:', result);
+  }
 });
 
 

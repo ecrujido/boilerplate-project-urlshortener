@@ -1,106 +1,107 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const mongoose = require('mongoose');
 const app = express();
-let mongoose;
-try {
-  mongoose = require("mongoose");
-} catch (e) {
-  console.log(e);
-}
-const bodyParser = require('body-parser');
-const router = express.Router();
-const shortId = require('shortid')
-const validator = require('validator');
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json())
-app.use(cors());
-
-console.log(process.env.MONGO_URI);
 
 // Basic Configuration
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
-mongoose.set('strictQuery', false);
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
-    console.error('Error connecting to MongoDB:', err);
-    process.exit(1);
-});
+app.use(cors());
 
+app.use(express.urlencoded({ extended: true }));
 
-const schema = new mongoose.Schema(
-    {
-        original: { type: String, required: true },
-        short: { type: Number, required: true }
-    }
+app.use("/public", express.static(`${process.cwd()}/public`));
+
+const schemaUrl = new mongoose.Schema(
+  {
+    original: { type: String, required: true },
+    short: { type: Number, required: true }
+  }
 );
 
-
-const Url = mongoose.model('Url', schema);
-
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
+const Url = mongoose.model('Url', schemaUrl);
 
 
-app.use('/public', express.static(`${process.cwd()}/public`));
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("Connected to MongoDB");
+  })
+  .catch((err) => {
+    console.error("Error connecting to MongoDB:", err);
+  });
 
-app.get('/', function (req, res) {
-    res.sendFile(process.cwd() + '/views/index.html');
+
+app.get("/", function (req, res) {
+  res.sendFile(process.cwd() + "/views/index.html");
+});
+
+// Your first API endpoint
+app.get("/api/hello", function (req, res) {
+  res.json({ greeting: "hello API" });
 });
 
 
-const urlMappings = new Map(); // Using Map to store original and shortened URLs
+// Initialize the arrays to store longUrl and corresponding short longUrl
+const longUrl = [];
+const shortUrl = [];
 
+// Route for creating short longUrl
+app.post("/api/shorturl", async (req, res) => {
+    const url = req.body.url;
+    const urlIndex = longUrl.indexOf(url);
 
-function isValidUrl(url) {
-  const urlRegex = /^(https?):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?$/;
-  return urlRegex.test(url);
-}
-
-
-app.post("/api/shorturl", (req, res) => {
-  const inputForm = req.body.url;
-
-  // Check if the input URL is valid
-  if (isValidUrl(inputForm)) {
-    if (!urlMappings.has(inputForm)) {
-      const shortUrl = urlMappings.size; // Short URL is the index of the mapping
-      urlMappings.set(inputForm, shortUrl);
-
-      return res.json({
-        original_url: inputForm,
-        short_url: shortUrl
-      });
-    } else {
-      const shortUrl = urlMappings.get(inputForm);
-      return res.json({
-        original_url: inputForm,
-        short_url: shortUrl
-      });
+    // Check if the URL is valid
+    if (!url.startsWith("https://") && !url.startsWith("http://")) {
+        return res.json({ error: "Invalid URL" });
     }
-  } else {
-    return res.json({ error: "Invalid URL" });
-  }
+
+    // If the URL is not already in the array, add it and generate a short URL
+    if (urlIndex < 0) {
+        longUrl.push(url);
+        shortUrl.push(shortUrl.length);
+
+        // Write each URL to the database
+        try {
+          for (let i = 0; i < longUrl.length; i++) {
+              await Url.create({ original: longUrl[i], short: i + 1 });
+          }
+          console.log("Urls written to the database.");
+          } catch (error) {
+            console.error("Error writing urls to the database:", error);
+            return res.status(500).json({ error: "Internal Server Error" });
+          }
+
+        return res.json({
+            original_url: url,
+            short_url: shortUrl.length - 1,
+        });
+    }
+
+    // If the URL is already in the array, return its corresponding short URL
+    return res.json({
+        original_url: url,
+        short_url: shortUrl[urlIndex],
+    });
+
+  });
+
+
+// Route for redirecting short longUrl to original longUrl
+app.get("/api/shorturl/:url", (req, res) => {
+    const url = parseInt(req.params.url);
+    const indexFound = shortUrl.indexOf(url);
+
+    // If the short URL is not found in the array, return an error
+    if (indexFound < 0) {
+        return res.json({ error: "No short URL found" });
+    }
+
+    // Redirect to the original URL corresponding to the short URL
+    res.redirect(longUrl[indexFound]);
 });
-
-
-app.get("/api/shorturl/:short_url", (req, res) => {
-  const shortUrl = parseInt(req.params.short_url);
-  if (urlMappings.has(shortUrl)) {
-    const originalUrl = Array.from(urlMappings.entries()).find(entry => entry[1] === shortUrl)[0];
-    return res.redirect(originalUrl);
-  } else {
-    return res.json({ error: "No short URL found for the given input" });
-  }
-});
-
-
 
 
 app.listen(port, function () {
-    console.log(`Listening on port ${port}`);
+  console.log(`Listening on port ${port}`);
 });

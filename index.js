@@ -106,33 +106,33 @@ app.get("/api/shorturl/:url", (req, res) => {
 
 
 
-function verifyUrl(submittedUrl, callback) {
-  try {
-    const parsedUrl = new URL(submittedUrl);
-    const hostname = parsedUrl.hostname;
+// function verifyUrl(submittedUrl, callback) {
+//   try {
+//     const parsedUrl = new URL(submittedUrl);
+//     const hostname = parsedUrl.hostname;
     
-    dns.lookup(hostname, (err, address, family) => {
-      if (err) {
-        callback(err);
-      } else {
-        callback(null, { hostname, address, family });
-      }
-    });
-  } catch (error) {
-    callback(error);
-  }
-}
+//     dns.lookup(hostname, (err, address, family) => {
+//       if (err) {
+//         callback(err);
+//       } else {
+//         callback(null, { hostname, address, family });
+//       }
+//     });
+//   } catch (error) {
+//     callback(error);
+//   }
+// }
 
 
-const submittedUrl = 'https://www.freecodecamp.org/learn/back-end-development-and-apis/back-end-development-and-apis-projects/url-shortener-microservice';
+// const submittedUrl = 'https://www.freecodecamp.org/learn/back-end-development-and-apis/back-end-development-and-apis-projects/url-shortener-microservice';
 
-verifyUrl(submittedUrl, (err, result) => {
-  if (err) {
-    console.error('Error:', err.message);
-  } else {
-    console.log('Verified URL:', result);
-  }
-});
+// verifyUrl(submittedUrl, (err, result) => {
+//   if (err) {
+//     console.error('Error:', err.message);
+//   } else {
+//     console.log('Verified URL:', result);
+//   }
+// });
 
 
 app.listen(port, function () {
